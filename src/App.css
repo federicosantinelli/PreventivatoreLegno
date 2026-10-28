@@ -133,6 +133,7 @@ main {
   position: relative;
   height: 688px;
   overflow: hidden;
+  isolation: isolate;
 }
 
 .viewer-label {
@@ -154,6 +155,12 @@ main {
 .canvas {
   height: 100%;
   width: 100%;
+  cursor: grab;
+  touch-action: none;
+}
+
+.canvas:active {
+  cursor: grabbing;
 }
 
 .viewer-measure {

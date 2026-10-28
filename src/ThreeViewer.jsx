@@ -5,8 +5,101 @@ import woodColorTexture from "./assets/Wood095_1K-JPG_Color.jpg";
 import woodRoughnessTexture from "./assets/Wood095_1K-JPG_Roughness.jpg";
 import woodNormalTexture from "./assets/Wood095_1K-JPG_NormalDX.jpg";
 
+function createFurnitureModel({
+  width,
+  height,
+  depth,
+  shelves,
+  shellMaterial,
+  innerMaterial,
+}) {
+  const group = new THREE.Group();
+  const displaySize = 7.4;
+  const maxDimension = Math.max(width, height, depth);
+  const scale = displaySize / maxDimension;
+  const w = width * scale;
+  const h = height * scale;
+  const d = depth * scale;
+  const thickness = Math.max(0.08, Math.min(0.22, Math.min(w, h, d) * 0.035));
+  const addPanel = (x, y, z, sx, sy, sz, material) => {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), material);
+    mesh.position.set(x, y, z);
+    group.add(mesh);
+  };
+
+  const leftX = -(w / 2) + thickness / 2;
+  const rightX = w / 2 - thickness / 2;
+  const topY = h / 2 - thickness / 2;
+  const bottomY = -(h / 2) + thickness / 2;
+  const backZ = -(d / 2) + thickness / 2;
+
+  addPanel(leftX, 0, 0, thickness, h, d, shellMaterial);
+  addPanel(rightX, 0, 0, thickness, h, d, shellMaterial);
+  addPanel(0, topY, 0, w, thickness, d, shellMaterial);
+  addPanel(0, bottomY, 0, w, thickness, d, shellMaterial);
+  addPanel(0, 0, backZ, w - thickness * 2, h - thickness * 2, thickness, innerMaterial);
+
+  const shelfCount = Math.max(1, shelves);
+  for (let index = 0; index < shelfCount; index += 1) {
+    const shelfY = -h / 2 + (h / (shelfCount + 1)) * (index + 1);
+    addPanel(
+      0,
+      shelfY,
+      0,
+      w - thickness * 2,
+      thickness * 0.82,
+      d - thickness * 1.4,
+      innerMaterial,
+    );
+  }
+
+  const frontFrameThickness = thickness * 0.85;
+  const frontFrameHeight = h - thickness * 1.8;
+  const frontFrameWidth = w - thickness * 1.4;
+  const frontZ = d / 2 - frontFrameThickness / 2;
+  addPanel(
+    -(frontFrameWidth / 2) + frontFrameThickness / 2,
+    0,
+    frontZ,
+    frontFrameThickness,
+    frontFrameHeight,
+    frontFrameThickness,
+    shellMaterial,
+  );
+  addPanel(
+    frontFrameWidth / 2 - frontFrameThickness / 2,
+    0,
+    frontZ,
+    frontFrameThickness,
+    frontFrameHeight,
+    frontFrameThickness,
+    shellMaterial,
+  );
+  addPanel(0, topY, frontZ, frontFrameWidth, frontFrameThickness, frontFrameThickness, shellMaterial);
+  addPanel(0, bottomY, frontZ, frontFrameWidth, frontFrameThickness, frontFrameThickness, shellMaterial);
+
+  group.rotation.set(0, -THREE.MathUtils.degToRad(20), 0);
+  return group;
+}
+
+function getFinishSettings(finish) {
+  return (
+    {
+      Grezzo: { roughness: 0.96, clearcoat: 0, tint: -0.06 },
+      "Cera naturale": { roughness: 0.78, clearcoat: 0.08, tint: -0.02 },
+      "Verniciato opaco": { roughness: 0.52, clearcoat: 0.12, tint: 0.02 },
+      Laccato: { roughness: 0.28, clearcoat: 0.48, tint: 0.08 },
+    }[finish] || { roughness: 0.78, clearcoat: 0.08, tint: 0 }
+  );
+}
+
 function ThreeViewer({ width, height, depth, shelves, color, finish }) {
   const mount = useRef(null);
+  const modelRef = useRef(null);
+  const materialsRef = useRef(null);
+  const rebuildModelRef = useRef(null);
+  const initialDimensionsRef = useRef({ width, height, depth, shelves });
+  const initialMaterialPropsRef = useRef({ color, finish });
 
   useEffect(() => {
     const element = mount.current;
@@ -21,8 +114,20 @@ function ThreeViewer({ width, height, depth, shelves, color, finish }) {
       0.1,
       100,
     );
-    camera.position.set(9.4, 4.7, 10.5);
-    camera.lookAt(0, 0, 0);
+    const cameraTarget = new THREE.Vector3(0, 0, 0);
+    const cameraDistance = 17;
+    const baseAzimuth = -Math.atan2(8.2, 11.4);
+    const baseElevation = 0.32;
+    const cameraPosition = new THREE.Vector3();
+    const initialHorizontalDistance =
+      cameraDistance * Math.cos(baseElevation);
+    cameraPosition.set(
+      initialHorizontalDistance * Math.sin(baseAzimuth),
+      cameraDistance * Math.sin(baseElevation),
+      initialHorizontalDistance * Math.cos(baseAzimuth),
+    );
+    camera.position.copy(cameraPosition);
+    camera.lookAt(cameraTarget);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -55,14 +160,13 @@ function ThreeViewer({ width, height, depth, shelves, color, finish }) {
     normalTexture.repeat.set(repeat, repeat);
     baseTexture.colorSpace = THREE.SRGBColorSpace;
 
-    const finishSettings = {
-      Grezzo: { roughness: 0.96, clearcoat: 0, tint: -0.06 },
-      "Cera naturale": { roughness: 0.78, clearcoat: 0.08, tint: -0.02 },
-      "Verniciato opaco": { roughness: 0.52, clearcoat: 0.12, tint: 0.02 },
-      Laccato: { roughness: 0.28, clearcoat: 0.48, tint: 0.08 },
-    }[finish] || { roughness: 0.78, clearcoat: 0.08, tint: 0 };
+    const finishSettings = getFinishSettings(initialMaterialPropsRef.current.finish);
 
-    const woodColor = new THREE.Color(color).offsetHSL(0, 0, finishSettings.tint);
+    const woodColor = new THREE.Color(initialMaterialPropsRef.current.color).offsetHSL(
+      0,
+      0,
+      finishSettings.tint,
+    );
     const shellMaterial = new THREE.MeshPhysicalMaterial({
       color: woodColor,
       map: baseTexture,
@@ -89,75 +193,37 @@ function ThreeViewer({ width, height, depth, shelves, color, finish }) {
       envMapIntensity: 0.7,
     });
 
-    const group = new THREE.Group();
-    const displaySize = 7.4;
-    const maxDimension = Math.max(width, height, depth);
-    const scale = displaySize / maxDimension;
-
-    const w = width * scale;
-    const h = height * scale;
-    const d = depth * scale;
-
-    const thickness = Math.max(0.08, Math.min(0.22, Math.min(w, h, d) * 0.035));
-    const addPanel = (x, y, z, sx, sy, sz, material) => {
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), material);
-      mesh.position.set(x, y, z);
-      group.add(mesh);
-      return mesh;
+    const rebuildModel = (dimensions) => {
+      const nextModel = createFurnitureModel({
+        ...dimensions,
+        shellMaterial,
+        innerMaterial,
+      });
+      if (modelRef.current) {
+        scene.remove(modelRef.current);
+        modelRef.current.traverse((object) => object.geometry?.dispose());
+      }
+      modelRef.current = nextModel;
+      scene.add(nextModel);
     };
-
-    const leftX = -(w / 2) + thickness / 2;
-    const rightX = w / 2 - thickness / 2;
-    const topY = h / 2 - thickness / 2;
-    const bottomY = -(h / 2) + thickness / 2;
-    const backZ = -(d / 2) + thickness / 2;
-
-    addPanel(leftX, 0, 0, thickness, h, d, shellMaterial);
-    addPanel(rightX, 0, 0, thickness, h, d, shellMaterial);
-    addPanel(0, topY, 0, w, thickness, d, shellMaterial);
-    addPanel(0, bottomY, 0, w, thickness, d, shellMaterial);
-    addPanel(0, 0, backZ, w - thickness * 2, h - thickness * 2, thickness, innerMaterial);
-
-    const shelfCount = Math.max(1, shelves);
-    for (let index = 0; index < shelfCount; index += 1) {
-      const shelfY = -h / 2 + (h / (shelfCount + 1)) * (index + 1);
-      const shelfDepth = d - thickness * 1.4;
-      addPanel(0, shelfY, 0, w - thickness * 2, thickness * 0.82, shelfDepth, innerMaterial);
-    }
-
-    const frontFrameThickness = thickness * 0.85;
-    const frontFrameHeight = h - thickness * 1.8;
-    const frontFrameWidth = w - thickness * 1.4;
-    const frontZ = d / 2 - frontFrameThickness / 2;
-    addPanel(
-      -(frontFrameWidth / 2) + frontFrameThickness / 2,
-      0,
-      frontZ,
-      frontFrameThickness,
-      frontFrameHeight,
-      frontFrameThickness,
-      shellMaterial,
-    );
-    addPanel(
-      +(frontFrameWidth / 2) - frontFrameThickness / 2,
-      0,
-      frontZ,
-      frontFrameThickness,
-      frontFrameHeight,
-      frontFrameThickness,
-      shellMaterial,
-    );
-    addPanel(0, topY, frontZ, frontFrameWidth, frontFrameThickness, frontFrameThickness, shellMaterial);
-    addPanel(0, bottomY, frontZ, frontFrameWidth, frontFrameThickness, frontFrameThickness, shellMaterial);
-
-    group.rotation.set(0, Math.PI / 5.8, 0);
-    scene.add(group);
+    materialsRef.current = { shellMaterial, innerMaterial };
+    rebuildModelRef.current = rebuildModel;
+    rebuildModel(initialDimensionsRef.current);
 
     const pointer = { x: 0, y: 0 };
+    const targetPosition = new THREE.Vector3();
     const onPointerMove = (event) => {
       const bounds = element.getBoundingClientRect();
-      pointer.x = ((event.clientX - bounds.left) / bounds.width) * 2 - 1;
-      pointer.y = ((event.clientY - bounds.top) / bounds.height) * 2 - 1;
+      pointer.x = THREE.MathUtils.clamp(
+        ((event.clientX - bounds.left) / bounds.width) * 2 - 1,
+        -1,
+        1,
+      );
+      pointer.y = THREE.MathUtils.clamp(
+        ((event.clientY - bounds.top) / bounds.height) * 2 - 1,
+        -1,
+        1,
+      );
     };
     const onPointerLeave = () => {
       pointer.x = 0;
@@ -177,9 +243,22 @@ function ThreeViewer({ width, height, depth, shelves, color, finish }) {
 
     let frame;
     const animate = () => {
-      const targetY = Math.PI / 5.8 + pointer.x * 0.22;
-      group.rotation.y += (targetY - group.rotation.y) * 0.08;
-      group.rotation.x += (pointer.y * 0.1 - group.rotation.x) * 0.08;
+      const targetAzimuth = baseAzimuth - pointer.x * 0.34;
+      const targetElevation = THREE.MathUtils.clamp(
+        baseElevation + pointer.y * 0.14,
+        0.18,
+        0.48,
+      );
+      const horizontalDistance =
+        cameraDistance * Math.cos(targetElevation);
+      targetPosition.set(
+        horizontalDistance * Math.sin(targetAzimuth),
+        cameraDistance * Math.sin(targetElevation),
+        horizontalDistance * Math.cos(targetAzimuth),
+      );
+      cameraPosition.lerp(targetPosition, 0.08);
+      camera.position.copy(cameraPosition);
+      camera.lookAt(cameraTarget);
       renderer.render(scene, camera);
       frame = requestAnimationFrame(animate);
     };
@@ -210,8 +289,40 @@ function ThreeViewer({ width, height, depth, shelves, color, finish }) {
       baseTexture.dispose();
       roughnessTexture.dispose();
       normalTexture.dispose();
+      modelRef.current = null;
+      materialsRef.current = null;
+      rebuildModelRef.current = null;
     };
-  }, [width, height, depth, shelves, color, finish]);
+  }, []);
+
+  useEffect(() => {
+    rebuildModelRef.current?.({ width, height, depth, shelves });
+  }, [width, height, depth, shelves]);
+
+  useEffect(() => {
+    const materials = materialsRef.current;
+    if (!materials) return;
+
+    const finishSettings = getFinishSettings(finish);
+    const woodColor = new THREE.Color(color).offsetHSL(0, 0, finishSettings.tint);
+    materials.shellMaterial.color.copy(woodColor);
+    materials.shellMaterial.roughness = finishSettings.roughness;
+    materials.shellMaterial.clearcoat = finishSettings.clearcoat;
+    materials.shellMaterial.clearcoatRoughness = Math.min(
+      1,
+      finishSettings.roughness + 0.18,
+    );
+    materials.innerMaterial.color.copy(woodColor).offsetHSL(0, 0, -0.06);
+    materials.innerMaterial.roughness = Math.min(
+      1,
+      finishSettings.roughness + 0.12,
+    );
+    materials.innerMaterial.clearcoat = finishSettings.clearcoat;
+    materials.innerMaterial.clearcoatRoughness = Math.min(
+      1,
+      finishSettings.roughness + 0.28,
+    );
+  }, [color, finish]);
 
   return (
     <div className="viewer">
