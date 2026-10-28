@@ -10,9 +10,9 @@ import Configurator from "./Configurator";
 import Admin from "./Admin";
 
 function App() {
-  const [pricing] = useState(() => getPricing());
+  const [pricing, setPricing] = useState(() => getPricing());
   return window.location.pathname === "/admin" ? (
-    <Admin pricing={pricing} setPricing={() => {}} />
+    <Admin pricing={pricing} setPricing={setPricing} />
   ) : (
     <Configurator pricing={pricing} />
   );

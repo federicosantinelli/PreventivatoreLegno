@@ -1,13 +1,16 @@
+const money = new Intl.NumberFormat("it-IT", {
+  style: "currency",
+  currency: "EUR",
+});
+
 function QuoteSummary({
   quote,
   values,
-  wood,
-  finish,
   delivery,
   pricing,
   update,
 }) {
-  return
+  return (
   <section className="quote">
     <div className="quote-heading">
       <h2>Il tuo preventivo</h2>
@@ -17,30 +20,9 @@ function QuoteSummary({
     </div>
     {quote ? (
       <div className="quote-grid">
-        <div className="area">
-          <span>Superficie totale lavorata</span>
-          <strong>
-            {decimal.format(quote.totalArea)} <small>m²</small>
-          </strong>
-          <p>
-            {decimal.format(quote.externalArea)} m² di facce esterne
-            <br />+ {decimal.format(quote.shelfArea)} m² di facce dei ripiani
-          </p>
-          <p>
-            {wood.price.toFixed(2).replace(".", ",")} € legno +{" "}
-            {finish.price.toFixed(2).replace(".", ",")} € finitura
-            <br />= {(wood.price + finish.price)
-              .toFixed(2)
-              .replace(".", ",")}{" "}
-            €/m², IVA esclusa
-          </p>
-        </div>
         <div className="breakdown">
           <div>
-            <span>
-              Libreria · {decimal.format(quote.totalArea)} m² ×{" "}
-              {(wood.price + finish.price).toFixed(2).replace(".", ",")} €
-            </span>
+            <span>Libreria</span>
             <b>{money.format(quote.woodCost + quote.finishCost)}</b>
           </div>
           <div>
@@ -79,9 +61,6 @@ function QuoteSummary({
           <strong>
             {money.format(values.withVat ? quote.total : quote.subtotal)}
           </strong>
-          <small>
-            La scelta cambia il totale visualizzato, non le voci di calcolo.
-          </small>
         </div>
       </div>
     ) : (
@@ -89,7 +68,8 @@ function QuoteSummary({
         Correggi le misure per visualizzare il preventivo.
       </div>
     )}
-  </section>;
+  </section>
+  );
 }
 
 export default QuoteSummary;

@@ -220,17 +220,15 @@ function Configurator({ pricing }) {
               preventivo.
             </p>
           </section>
+          <QuoteSummary
+            quote={quote}
+            values={values}
+            delivery={delivery}
+            pricing={pricing}
+            update={update}
+          />
         </div>
       </div>
-      <QuoteSummary
-        quote={quote}
-        values={values}
-        wood={wood}
-        finish={finish}
-        delivery={delivery}
-        pricing={pricing}
-        update={update}
-      />
       <footer>
         <span>
           <Icon size={15}>
