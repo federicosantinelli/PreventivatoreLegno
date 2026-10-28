@@ -1,13 +1,13 @@
 :root {
-    font-family: Arial, Helvetica, sans-serif;
-    color: #2c2d2b;
-    background: #fff;
-    font-synthesis: none;
-    text-rendering: optimizeLegibility;
-    -webkit-font-smoothing: antialiased;
+  font-family: Arial, Helvetica, sans-serif;
+  color: #2c2d2b;
+  background: #fff;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
 }
 
 body {
-    margin: 0;
-    min-width: 320px;
+  margin: 0;
+  min-width: 320px;
 }
