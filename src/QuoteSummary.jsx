@@ -7,7 +7,7 @@ function QuoteSummary({
   pricing,
   update,
 }) {
-  return;
+  return
   <section className="quote">
     <div className="quote-heading">
       <h2>Il tuo preventivo</h2>
